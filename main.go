@@ -1,75 +1,54 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rjarry/ovs-exporter/appctl"
+	"github.com/rjarry/ovs-exporter/log"
+	"github.com/rjarry/ovs-exporter/ovsdb"
 )
 
+func die(message string, args ...any) {
+	log.Critf(message, args...)
+	os.Exit(1)
+}
+
 func main() {
-	RejectedCounter := prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "srht",
-		Subsystem: "lists",
-		Name:      "conn_rejected",
-		Help:      "Total number of rejected connections or messages.",
-	})
-
-	DroppedCounter := prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "srht",
-		Subsystem: "lists",
-		Name:      "emails_dropped",
-		Help:      "Total number of silently dropped messages.",
-	})
-
-	EmailsCounter := prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "srht",
-		Subsystem: "lists",
-		Name:      "emails_received",
-		Help:      "Total number of emails received.",
-	})
-
-	ErrorsCounter := prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "srht",
-		Subsystem: "lists",
-		Name:      "email_errors",
-		Help:      "Total number of erroneous emails received.",
-	})
-
-	BounceCounter := prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "srht",
-		Subsystem: "lists",
-		Name:      "email_bounced",
-		Help:      "Total number of bounced emails.",
-	})
-
-	ForwardsCounter := prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "srht",
-		Subsystem: "lists",
-		Name:      "forwards_processed",
-		Help:      "Total number of emails forwarded to subscribers.",
-	})
-
-	CommandsCounter := prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "srht",
-		Subsystem: "lists",
-		Name:      "commands_processed",
-		Help:      "Total number of commands processed, e.g. +subscribe.",
-	})
-
-	prometheus.MustRegister(
-		RejectedCounter,
-		DroppedCounter,
-		EmailsCounter,
-		ErrorsCounter,
-		BounceCounter,
-		ForwardsCounter,
-		CommandsCounter,
-	)
-	log.Println("exposing prometheus metrics over http://[::]:1234")
-	err := http.ListenAndServe(":1234", promhttp.Handler())
+	config, err := ParseConfig()
 	if err != nil {
-		log.Fatal(err)
+		// logging not initialized yet, directly write to stderr
+		fmt.Fprintf(os.Stderr, "error: failed to parse config: %s\n", err)
+		os.Exit(1)
+	}
+	err = log.InitLogging(config.LogLevel)
+	if err != nil {
+		// logging not initialized yet, directly write to stderr
+		fmt.Fprintf(os.Stderr, "error: failed to init log: %s\n", err)
+		os.Exit(1)
+	}
+
+	log.Debugf("initializing collectors")
+
+	var collectors []prometheus.Collector
+
+	collectors = append(collectors, ovsdb.Collectors()...)
+
+	for _, c := range appctl.Collectors() {
+		log.Debugf("registering %v", c)
+		err := prometheus.Register(c)
+		if err != nil {
+			die("collector: %s", err)
+		}
+	}
+
+	log.Infof("listening on http://[::]%s", config.HttpEndpoint)
+
+	err = http.ListenAndServe(config.HttpEndpoint, promhttp.Handler())
+	if err != nil {
+		die("listen: %s", err)
 	}
 }
