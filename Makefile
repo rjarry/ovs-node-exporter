@@ -6,7 +6,14 @@ src = $(shell find * -type f -name '*.go') go.mod go.sum
 go_ldflags :=
 go_ldflags += -X main.version=$(version)
 
+.PHONY: all
 all: ovs-exporter
 
 ovs-exporter: $(src)
 	go build -trimpath -ldflags='$(go_ldflags)' -o $@
+
+.PHONY: generate
+generate: schema/ovs/model.go
+
+schema/ovs/model.go: schema/ovs/schema.json
+	go generate ./...
