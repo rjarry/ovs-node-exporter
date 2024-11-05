@@ -3,4 +3,6 @@
 
 package ovs
 
+import _ "github.com/ovn-org/libovsdb/cmd/modelgen"
+
 //go:generate go run github.com/ovn-org/libovsdb/cmd/modelgen -o . -p ovs schema.json
