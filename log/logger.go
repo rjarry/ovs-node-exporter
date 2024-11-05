@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2024 Robin Jarry
+
 package log
 
 import (
@@ -19,6 +22,7 @@ var (
 	writer   *syslog.Writer
 )
 
+// Parse a log level from a string and return an integer value
 func ParseLogLevel(s string) (syslog.Priority, error) {
 	var prio syslog.Priority
 	switch strings.ToLower(s) {
@@ -40,6 +44,8 @@ func ParseLogLevel(s string) (syslog.Priority, error) {
 	return prio, nil
 }
 
+// Initialize the logging system.
+// Redirect messages to syslog if run by systemd.
 func InitLogging(prio syslog.Priority) error {
 	priority = prio
 	if os.Getenv("INVOCATION_ID") != "" {
@@ -65,6 +71,7 @@ func format(message string, args ...any) string {
 	return fmt.Sprintf(strings.TrimSpace(message)+"\n", args...)
 }
 
+// Write a DEBUG message to the log
 func Debugf(message string, args ...any) {
 	if priority < syslog.LOG_DEBUG {
 		return
@@ -77,6 +84,7 @@ func Debugf(message string, args ...any) {
 	}
 }
 
+// Write an INFO message to the log
 func Infof(message string, args ...any) {
 	if priority < syslog.LOG_INFO {
 		return
@@ -89,6 +97,7 @@ func Infof(message string, args ...any) {
 	}
 }
 
+// Write a NOTICE message to the log
 func Noticef(message string, args ...any) {
 	if priority < syslog.LOG_NOTICE {
 		return
@@ -101,7 +110,8 @@ func Noticef(message string, args ...any) {
 	}
 }
 
-func Warnf(message string, args ...any) {
+// Write a WARNING message to the log
+func Warningf(message string, args ...any) {
 	if priority < syslog.LOG_WARNING {
 		return
 	}
@@ -113,6 +123,7 @@ func Warnf(message string, args ...any) {
 	}
 }
 
+// Write an ERR message to the log
 func Errf(message string, args ...any) {
 	if priority < syslog.LOG_ERR {
 		return
@@ -125,6 +136,7 @@ func Errf(message string, args ...any) {
 	}
 }
 
+// Write a CRIT message to the log
 func Critf(message string, args ...any) {
 	if priority < syslog.LOG_CRIT {
 		return

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2024 Robin Jarry
+
 module github.com/rjarry/ovs-exporter
 
 go 1.21
