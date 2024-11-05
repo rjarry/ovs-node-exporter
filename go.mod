@@ -6,7 +6,6 @@ module github.com/rjarry/ovs-exporter
 go 1.21
 
 require (
-	github.com/influxdata/influxdb1-client v0.0.0-20220302092344-a9ab5670611c
 	github.com/ovn-org/libovsdb v0.7.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/vaughan0/go-ini v0.0.0-20130923145212-a98ad7ee00ec
