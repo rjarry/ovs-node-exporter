@@ -56,7 +56,7 @@ func InitLogging(prio syslog.Priority) error {
 		}
 		writer = w
 	} else {
-		flags := log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile
+		flags := log.Ltime | log.Lshortfile
 		debug = log.New(os.Stderr, "DEBUG ", flags)
 		info = log.New(os.Stderr, "INFO  ", flags)
 		notice = log.New(os.Stderr, "NOTICE  ", flags)

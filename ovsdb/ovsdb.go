@@ -4,6 +4,10 @@
 package ovsdb
 
 import (
+	"context"
+	"time"
+
+	"github.com/ovn-org/libovsdb/client"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rjarry/ovs-exporter/config"
 )
@@ -30,5 +34,17 @@ var EmailsCounter = prometheus.NewCounter(prometheus.CounterOpts{
 })
 
 func Collectors(conf *config.Config) []prometheus.Collector {
+	c, err := client.NewOVSDBClient(schema, client.WithEndpoint(endpoint))
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	err = c.Connect(ctx)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
