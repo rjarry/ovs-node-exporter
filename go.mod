@@ -6,6 +6,7 @@ module github.com/rjarry/ovs-exporter
 go 1.21
 
 require (
+	github.com/go-logr/logr v1.2.2
 	github.com/ovn-org/libovsdb v0.7.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/vaughan0/go-ini v0.0.0-20130923145212-a98ad7ee00ec
@@ -18,7 +19,6 @@ require (
 	github.com/cenkalti/rpc2 v0.0.0-20210604223624-c1acbc6ec984 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/go-logr/logr v1.2.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/uuid v1.2.0 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
