@@ -39,7 +39,7 @@ var conf = Config{
 func ParseConfig() (*Config, error) {
 	path, configInEnv := os.LookupEnv("OVS_NODE_EXPORTER_CONFIG")
 	if !configInEnv {
-		path = "/etc/ovs-exporter.conf"
+		path = "/etc/ovs-node-exporter.conf"
 	}
 
 	file, err := ini.LoadFile(path)

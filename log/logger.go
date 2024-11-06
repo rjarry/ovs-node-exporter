@@ -35,11 +35,11 @@ func ParseLogLevel(s string) (syslog.Priority, error) {
 		prio = syslog.LOG_INFO
 	case "notice":
 		prio = syslog.LOG_NOTICE
-	case "warning":
+	case "warning", "warn":
 		prio = syslog.LOG_WARNING
-	case "err":
+	case "err", "error":
 		prio = syslog.LOG_ERR
-	case "crit":
+	case "crit", "critical":
 		prio = syslog.LOG_CRIT
 	default:
 		return 0, fmt.Errorf("invalid log level %q", s)
