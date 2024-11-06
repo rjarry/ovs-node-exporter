@@ -61,9 +61,6 @@ func (c *OvsdbCollector) connect() bool {
 }
 
 func (c *OvsdbCollector) Describe(d chan<- *prometheus.Desc) {
-	if !c.connect() {
-		return
-	}
 }
 
 func (c *OvsdbCollector) Collect(m chan<- prometheus.Metric) {
@@ -72,16 +69,13 @@ func (c *OvsdbCollector) Collect(m chan<- prometheus.Metric) {
 	}
 }
 
-func Collectors(conf *config.Config) []prometheus.Collector {
+func Collector(conf *config.Config) prometheus.Collector {
 	schema, err := ovs.FullDatabaseModel()
 	if err != nil {
 		panic(err)
 	}
-
-	collector := &OvsdbCollector{
+	return &OvsdbCollector{
 		endpoint: conf.OvsdbEndpoint,
 		schema:   schema,
 	}
-
-	return []prometheus.Collector{collector}
 }

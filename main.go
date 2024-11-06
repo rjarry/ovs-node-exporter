@@ -10,7 +10,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rjarry/ovs-exporter/appctl"
 	"github.com/rjarry/ovs-exporter/config"
 	"github.com/rjarry/ovs-exporter/log"
 	"github.com/rjarry/ovs-exporter/ovsdb"
@@ -33,8 +32,7 @@ func main() {
 	log.Debugf("initializing collectors")
 
 	var collectors []prometheus.Collector
-	collectors = append(collectors, ovsdb.Collectors(conf)...)
-	collectors = append(collectors, appctl.Collectors(conf)...)
+	collectors = append(collectors, ovsdb.Collector(conf))
 
 	for _, c := range collectors {
 		log.Debugf("registering %v", c)
