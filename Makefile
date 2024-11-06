@@ -9,7 +9,7 @@ go_ldflags += -X main.version=$(version)
 .PHONY: all
 all: ovs-exporter
 
-ovs-exporter: $(src)
+ovs-node-exporter: $(src)
 	go build -trimpath -ldflags='$(go_ldflags)' -o $@
 
 .PHONY: generate

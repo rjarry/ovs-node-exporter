@@ -9,17 +9,19 @@ import (
 	"log/syslog"
 	"os"
 	"strings"
+
+	"github.com/go-logr/logr"
 )
 
 var (
-	debug    *log.Logger
-	info     *log.Logger
-	notice   *log.Logger
-	warning  *log.Logger
-	err      *log.Logger
-	crit     *log.Logger
-	priority syslog.Priority
-	writer   *syslog.Writer
+	debug     *log.Logger
+	info      *log.Logger
+	notice    *log.Logger
+	warning   *log.Logger
+	err       *log.Logger
+	crit      *log.Logger
+	verbosity syslog.Priority
+	writer    *syslog.Writer
 )
 
 // Parse a log level from a string and return an integer value
@@ -46,8 +48,8 @@ func ParseLogLevel(s string) (syslog.Priority, error) {
 
 // Initialize the logging system.
 // Redirect messages to syslog if run by systemd.
-func InitLogging(prio syslog.Priority) error {
-	priority = prio
+func InitLogging(level syslog.Priority) error {
+	verbosity = level
 	if os.Getenv("INVOCATION_ID") != "" {
 		// executed by systemd
 		w, err := syslog.New(syslog.LOG_DAEMON, "")
@@ -57,12 +59,12 @@ func InitLogging(prio syslog.Priority) error {
 		writer = w
 	} else {
 		flags := log.Ltime | log.Lshortfile
-		debug = log.New(os.Stderr, "DEBUG ", flags)
-		info = log.New(os.Stderr, "INFO  ", flags)
+		debug = log.New(os.Stderr, "DEBUG   ", flags)
+		info = log.New(os.Stderr, "INFO    ", flags)
 		notice = log.New(os.Stderr, "NOTICE  ", flags)
-		warning = log.New(os.Stderr, "WARNING  ", flags)
-		err = log.New(os.Stderr, "ERR ", flags)
-		crit = log.New(os.Stderr, "CRIT ", flags)
+		warning = log.New(os.Stderr, "WARNING ", flags)
+		err = log.New(os.Stderr, "ERROR   ", flags)
+		crit = log.New(os.Stderr, "CRIT    ", flags)
 	}
 	return nil
 }
@@ -73,7 +75,7 @@ func format(message string, args ...any) string {
 
 // Write a DEBUG message to the log
 func Debugf(message string, args ...any) {
-	if priority < syslog.LOG_DEBUG {
+	if verbosity < syslog.LOG_DEBUG {
 		return
 	}
 	msg := format(message, args...)
@@ -86,7 +88,7 @@ func Debugf(message string, args ...any) {
 
 // Write an INFO message to the log
 func Infof(message string, args ...any) {
-	if priority < syslog.LOG_INFO {
+	if verbosity < syslog.LOG_INFO {
 		return
 	}
 	msg := format(message, args...)
@@ -99,7 +101,7 @@ func Infof(message string, args ...any) {
 
 // Write a NOTICE message to the log
 func Noticef(message string, args ...any) {
-	if priority < syslog.LOG_NOTICE {
+	if verbosity < syslog.LOG_NOTICE {
 		return
 	}
 	msg := format(message, args...)
@@ -112,7 +114,7 @@ func Noticef(message string, args ...any) {
 
 // Write a WARNING message to the log
 func Warningf(message string, args ...any) {
-	if priority < syslog.LOG_WARNING {
+	if verbosity < syslog.LOG_WARNING {
 		return
 	}
 	msg := format(message, args...)
@@ -125,7 +127,7 @@ func Warningf(message string, args ...any) {
 
 // Write an ERR message to the log
 func Errf(message string, args ...any) {
-	if priority < syslog.LOG_ERR {
+	if verbosity < syslog.LOG_ERR {
 		return
 	}
 	msg := format(message, args...)
@@ -138,7 +140,7 @@ func Errf(message string, args ...any) {
 
 // Write a CRIT message to the log
 func Critf(message string, args ...any) {
-	if priority < syslog.LOG_CRIT {
+	if verbosity < syslog.LOG_CRIT {
 		return
 	}
 	msg := format(message, args...)
@@ -147,4 +149,51 @@ func Critf(message string, args ...any) {
 	} else {
 		crit.Output(2, msg)
 	}
+}
+
+type Sink struct{}
+
+func (s *Sink) Enabled(level int) bool {
+	if level < 0 {
+		level = 0
+	}
+	switch level {
+	case 0:
+		return verbosity >= syslog.LOG_NOTICE
+	case 1:
+		return verbosity >= syslog.LOG_INFO
+	default:
+		return verbosity >= syslog.LOG_DEBUG
+	}
+}
+
+func (s *Sink) Error(e error, msg string, args ...any) {
+	if verbosity < syslog.LOG_ERR {
+		return
+	}
+	message := format(msg, args...)
+	if writer != nil {
+		writer.Err(message)
+	} else {
+		err.Output(2, message)
+	}
+}
+
+func (s *Sink) Info(level int, msg string, args ...any) {
+}
+
+func (s *Sink) Init(info logr.RuntimeInfo) {
+}
+
+func (s *Sink) WithValues(keysAndValues ...any) logr.LogSink {
+	return s
+}
+
+func (s *Sink) WithName(name string) logr.LogSink {
+	return s
+}
+
+func Logger() *logr.Logger {
+	l := logr.New(new(Sink))
+	return &l
 }

@@ -12,13 +12,15 @@ import (
 )
 
 type Config struct {
-	HttpEndpoint string
-	LogLevel     syslog.Priority
+	HttpEndpoint  string
+	OvsdbEndpoint string
+	LogLevel      syslog.Priority
 }
 
 var conf = Config{
-	HttpEndpoint: ":1981",
-	LogLevel:     syslog.LOG_NOTICE,
+	HttpEndpoint:  ":1981",
+	OvsdbEndpoint: "unix:/run/openvswitch/ovsdb.sock",
+	LogLevel:      syslog.LOG_NOTICE,
 }
 
 func ParseConfig() (*Config, error) {
@@ -32,6 +34,7 @@ func ParseConfig() (*Config, error) {
 		return nil, err
 	}
 
+	// [main].http-endpoint
 	value, ok := os.LookupEnv("OVS_EXPORTER_HTTP_ENDPOINT")
 	if !ok {
 		value, ok = file.Get("main", "http-endpoint")
@@ -39,6 +42,17 @@ func ParseConfig() (*Config, error) {
 	if ok {
 		conf.HttpEndpoint = value
 	}
+
+	// [main].ovsdb-endpoint
+	value, ok = os.LookupEnv("OVS_EXPORTER_OVSDB_ENDPOINT")
+	if !ok {
+		value, ok = file.Get("main", "ovsdb-endpoint")
+	}
+	if ok {
+		conf.OvsdbEndpoint = value
+	}
+
+	// [main].log-level
 	value, ok = os.LookupEnv("OVS_EXPORTER_LOG_LEVEL")
 	if !ok {
 		value, ok = file.Get("main", "log-level")

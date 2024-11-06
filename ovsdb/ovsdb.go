@@ -8,43 +8,80 @@ import (
 	"time"
 
 	"github.com/ovn-org/libovsdb/client"
+	"github.com/ovn-org/libovsdb/model"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rjarry/ovs-exporter/config"
+	"github.com/rjarry/ovs-exporter/log"
+	"github.com/rjarry/ovs-exporter/schema/ovs"
 )
 
-var RejectedCounter = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "srht",
-	Subsystem: "lists",
-	Name:      "conn_rejected",
-	Help:      "Total number of rejected connections or messages.",
-})
+type OvsdbCollector struct {
+	endpoint string
+	schema   model.ClientDBModel
+	db       client.Client
+}
 
-var DroppedCounter = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "srht",
-	Subsystem: "lists",
-	Name:      "emails_dropped",
-	Help:      "Total number of silently dropped messages.",
-})
-
-var EmailsCounter = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "srht",
-	Subsystem: "lists",
-	Name:      "emails_received",
-	Help:      "Total number of emails received.",
-})
-
-func Collectors(conf *config.Config) []prometheus.Collector {
-	c, err := client.NewOVSDBClient(schema, client.WithEndpoint(endpoint))
-	if err != nil {
-		return err
-	}
-
+func (c *OvsdbCollector) connect() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	err = c.Connect(ctx)
-	if err != nil {
-		return err
+
+	if c.db != nil {
+		err := c.db.Echo(ctx)
+		if err == nil {
+			return true
+		}
+		log.Warningf("db.Echo: %s", err)
+		cancel()
+		ctx, cancel = context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
 	}
 
-	return nil
+	log.Noticef("connecting to ovsdb: %s", c.endpoint)
+
+	db, err := client.NewOVSDBClient(
+		c.schema,
+		client.WithEndpoint(c.endpoint),
+		client.WithLogger(log.Logger()),
+	)
+	if err != nil {
+		log.Errf("NewOVSDBClient: %s", err)
+		return false
+	}
+	if err = db.Connect(ctx); err != nil {
+		log.Errf("db.Connect: %s", err)
+		return false
+	}
+	if err = c.db.Echo(ctx); err != nil {
+		log.Errf("db.Echo: %s", err)
+		return false
+	}
+
+	c.db = db
+	return true
+}
+
+func (c *OvsdbCollector) Describe(d chan<- *prometheus.Desc) {
+	if !c.connect() {
+		return
+	}
+}
+
+func (c *OvsdbCollector) Collect(m chan<- prometheus.Metric) {
+	if !c.connect() {
+		return
+	}
+}
+
+func Collectors(conf *config.Config) []prometheus.Collector {
+	schema, err := ovs.FullDatabaseModel()
+	if err != nil {
+		panic(err)
+	}
+
+	collector := &OvsdbCollector{
+		endpoint: conf.OvsdbEndpoint,
+		schema:   schema,
+	}
+
+	return []prometheus.Collector{collector}
 }
