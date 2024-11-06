@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -151,9 +152,11 @@ func Critf(message string, args ...any) {
 	}
 }
 
-type Sink struct{}
+type sink struct {
+	calldepth int
+}
 
-func (s *Sink) Enabled(level int) bool {
+func (s *sink) Enabled(level int) bool {
 	if level < 0 {
 		level = 0
 	}
@@ -167,33 +170,72 @@ func (s *Sink) Enabled(level int) bool {
 	}
 }
 
-func (s *Sink) Error(e error, msg string, args ...any) {
+func (s *sink) Error(e error, msg string, args ...any) {
 	if verbosity < syslog.LOG_ERR {
 		return
 	}
-	message := format(msg, args...)
+	message := format("%s: %v", msg, args)
 	if writer != nil {
 		writer.Err(message)
 	} else {
-		err.Output(2, message)
+		err.Output(s.calldepth, message)
 	}
 }
 
-func (s *Sink) Info(level int, msg string, args ...any) {
+func (s *sink) Info(level int, msg string, args ...any) {
+	if level < 0 {
+		level = 0
+	}
+	message := format("%s: %v", msg, args)
+	switch level {
+	case 0:
+		if writer != nil {
+			writer.Err(message)
+		} else {
+			err.Output(s.calldepth, message)
+		}
+	case 1:
+		if writer != nil {
+			writer.Info(message)
+		} else {
+			info.Output(s.calldepth, message)
+		}
+	default:
+		if writer != nil {
+			writer.Debug(message)
+		} else {
+			debug.Output(s.calldepth, message)
+		}
+	}
 }
 
-func (s *Sink) Init(info logr.RuntimeInfo) {
+func (s *sink) Init(info logr.RuntimeInfo) {
+	s.calldepth = info.CallDepth
 }
 
-func (s *Sink) WithValues(keysAndValues ...any) logr.LogSink {
+func (s *sink) WithValues(keysAndValues ...any) logr.LogSink {
 	return s
 }
 
-func (s *Sink) WithName(name string) logr.LogSink {
+func (s *sink) WithName(name string) logr.LogSink {
 	return s
 }
 
-func Logger() *logr.Logger {
-	l := logr.New(new(Sink))
+func OvsdbLogger() *logr.Logger {
+	l := logr.New(new(sink))
 	return &l
+}
+
+// used by prometheus error logging
+func (s *sink) Println(args ...any) {
+	msg := fmt.Sprintln(args...)
+	if writer != nil {
+		writer.Err(msg)
+	} else {
+		err.Output(2, msg)
+	}
+}
+
+func PrometheusLogger() promhttp.Logger {
+	return new(sink)
 }

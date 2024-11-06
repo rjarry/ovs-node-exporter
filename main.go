@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -35,7 +36,7 @@ func main() {
 	collectors = append(collectors, ovsdb.Collector(conf))
 
 	for _, c := range collectors {
-		log.Debugf("registering %v", c)
+		log.Debugf("registering %T", c)
 		err := prometheus.Register(c)
 		if err != nil {
 			log.Critf("collector: %s", err)
@@ -43,9 +44,19 @@ func main() {
 		}
 	}
 
-	log.Noticef("listening on http://[::]%s", conf.HttpEndpoint)
+	log.Noticef("listening on http://[::]%s", conf.HttpListen)
 
-	err = http.ListenAndServe(conf.HttpEndpoint, promhttp.Handler())
+	handler := promhttp.HandlerFor(
+		prometheus.DefaultGatherer,
+		promhttp.HandlerOpts{
+			ErrorLog:            log.PrometheusLogger(),
+			ErrorHandling:       promhttp.ContinueOnError,
+			MaxRequestsInFlight: 10,
+			Timeout:             2 * time.Second,
+			EnableOpenMetrics:   true,
+		},
+	)
+	err = http.ListenAndServe(conf.HttpListen, handler)
 	if err != nil {
 		log.Critf("listen: %s", err)
 		os.Exit(1)

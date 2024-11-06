@@ -19,6 +19,13 @@ type OvsdbCollector struct {
 	endpoint string
 	schema   model.ClientDBModel
 	db       client.Client
+	metrics  []*OvsMetric
+}
+
+var collector OvsdbCollector
+
+func (c *OvsdbCollector) RegisterMetric(m *OvsMetric) {
+	c.metrics = append(c.metrics, m)
 }
 
 func (c *OvsdbCollector) connect() bool {
@@ -41,7 +48,7 @@ func (c *OvsdbCollector) connect() bool {
 	db, err := client.NewOVSDBClient(
 		c.schema,
 		client.WithEndpoint(c.endpoint),
-		client.WithLogger(log.Logger()),
+		client.WithLogger(log.OvsdbLogger()),
 	)
 	if err != nil {
 		log.Errf("NewOVSDBClient: %s", err)
@@ -60,12 +67,18 @@ func (c *OvsdbCollector) connect() bool {
 	return true
 }
 
-func (c *OvsdbCollector) Describe(d chan<- *prometheus.Desc) {
+func (c *OvsdbCollector) Describe(ch chan<- *prometheus.Desc) {
+	for _, metric := range c.metrics {
+		ch <- metric.Desc
+	}
 }
 
-func (c *OvsdbCollector) Collect(m chan<- prometheus.Metric) {
+func (c *OvsdbCollector) Collect(ch chan<- prometheus.Metric) {
 	if !c.connect() {
 		return
+	}
+	for _, metric := range c.metrics {
+		ch <- metric.Value(c.db)
 	}
 }
 
@@ -74,8 +87,9 @@ func Collector(conf *config.Config) prometheus.Collector {
 	if err != nil {
 		panic(err)
 	}
-	return &OvsdbCollector{
-		endpoint: conf.OvsdbEndpoint,
-		schema:   schema,
-	}
+
+	collector.schema = schema
+	collector.endpoint = conf.OvsdbEndpoint
+
+	return &collector
 }
