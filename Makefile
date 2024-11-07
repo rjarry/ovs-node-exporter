@@ -30,4 +30,4 @@ lint:
 
 .PHONY: run
 run: ovs-node-exporter
-	OVS_NODE_EXPORTER=etc/dev.conf ./$<
+	OVS_NODE_EXPORTER_CONFIG=etc/dev.conf ./$<

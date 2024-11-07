@@ -39,12 +39,14 @@ func main() {
 
 	for _, c := range collectors {
 		if config.MetricSets.Has(c.MetricSet()) {
-			log.Debugf("registering %T", c)
+			log.Infof("registering %T", c)
 
 			if err := registry.Register(c); err != nil {
 				log.Critf("collector: %s", err)
 				os.Exit(1)
 			}
+		} else {
+			log.Infof("%T not registered, metric set not enabled", c)
 		}
 	}
 
