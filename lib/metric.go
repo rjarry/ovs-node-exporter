@@ -5,8 +5,13 @@ import (
 	"github.com/rjarry/ovs-exporter/config"
 )
 
+type Collector interface {
+	prometheus.Collector
+
+	MetricSet() config.MetricSet
+}
+
 type Metric struct {
-	Set         config.MetricSet
 	Name        string
 	Description string
 	Labels      []string

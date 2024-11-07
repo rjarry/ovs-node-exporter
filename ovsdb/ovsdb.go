@@ -9,40 +9,28 @@ import (
 
 	"github.com/ovn-org/libovsdb/client"
 	"github.com/ovn-org/libovsdb/model"
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/ovn-org/libovsdb/ovsdb"
 	"github.com/rjarry/ovs-exporter/config"
+	"github.com/rjarry/ovs-exporter/lib"
 	"github.com/rjarry/ovs-exporter/log"
 )
 
 var (
 	// initialized via register() in modules init()
-	collectors []prometheus.Collector
+	collectors []lib.Collector
 	// initialized once in Collectors()
 	schema model.ClientDBModel
-	// nil at startup, initialized with connect()
-	DB client.Client
 )
 
-func register(c prometheus.Collector) {
+func register(c lib.Collector) {
 	collectors = append(collectors, c)
 }
 
-func connect() bool {
+func query(table string) []ovsdb.Row {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	if DB != nil {
-		err := DB.Echo(ctx)
-		if err == nil {
-			return true
-		}
-		log.Warningf("db.Echo: %s", err)
-		cancel()
-		ctx, cancel = context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-	}
-
-	log.Noticef("connecting to ovsdb: %s", config.OvsdbEndpoint)
+	log.Debugf("connecting to ovsdb: %s", config.OvsdbEndpoint)
 
 	db, err := client.NewOVSDBClient(
 		schema,
@@ -51,22 +39,31 @@ func connect() bool {
 	)
 	if err != nil {
 		log.Errf("NewOVSDBClient: %s", err)
-		return false
+		return nil
 	}
 	if err = db.Connect(ctx); err != nil {
 		log.Errf("db.Connect: %s", err)
-		return false
+		return nil
 	}
-	if err = db.Echo(ctx); err != nil {
-		log.Errf("db.Echo: %s", err)
-		return false
+	defer db.Disconnect()
+
+	results, err := db.Transact(ctx, ovsdb.Operation{
+		Op:    ovsdb.OperationSelect,
+		Table: table,
+	})
+	if err != nil {
+		log.Errf("transact: %s", err)
+		return nil
 	}
 
-	DB = db
-	return true
+	for _, result := range results {
+		return result.Rows
+	}
+
+	return nil
 }
 
-func Collectors() []prometheus.Collector {
+func Collectors() []lib.Collector {
 	schema, _ = model.NewClientDBModel("Open_vSwitch", nil)
 	return collectors
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rjarry/ovs-exporter/appctl"
 	"github.com/rjarry/ovs-exporter/config"
+	"github.com/rjarry/ovs-exporter/lib"
 	"github.com/rjarry/ovs-exporter/log"
 	"github.com/rjarry/ovs-exporter/ovsdb"
 )
@@ -31,17 +32,19 @@ func main() {
 
 	log.Debugf("initializing collectors")
 
-	var collectors []prometheus.Collector
+	var collectors []lib.Collector
 	collectors = append(collectors, appctl.Collectors()...)
 	collectors = append(collectors, ovsdb.Collectors()...)
 	registry := prometheus.NewRegistry()
 
 	for _, c := range collectors {
-		log.Debugf("registering %T", c)
+		if config.MetricSets.Has(c.MetricSet()) {
+			log.Debugf("registering %T", c)
 
-		if err := registry.Register(c); err != nil {
-			log.Critf("collector: %s", err)
-			os.Exit(1)
+			if err := registry.Register(c); err != nil {
+				log.Critf("collector: %s", err)
+				os.Exit(1)
+			}
 		}
 	}
 

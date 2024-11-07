@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rjarry/ovs-exporter/config"
+	"github.com/rjarry/ovs-exporter/lib"
 	"github.com/rjarry/ovs-exporter/log"
 )
 
@@ -45,6 +45,12 @@ func call(method string, args ...string) string {
 	}
 
 	client := rpc.NewClientWithCodec(NewClientCodec(conn))
+	defer func() {
+		err := client.Close()
+		if err != nil {
+			log.Warningf("close: %s", err)
+		}
+	}()
 
 	if args == nil {
 		args = make([]string, 0)
@@ -59,12 +65,12 @@ func call(method string, args ...string) string {
 	return reply
 }
 
-var collectors []prometheus.Collector
+var collectors []lib.Collector
 
-func register(c prometheus.Collector) {
+func register(c lib.Collector) {
 	collectors = append(collectors, c)
 }
 
-func Collectors() []prometheus.Collector {
+func Collectors() []lib.Collector {
 	return collectors
 }
