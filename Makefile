@@ -11,3 +11,11 @@ all: ovs-node-exporter
 
 ovs-node-exporter: $(src)
 	go build -trimpath -ldflags='$(go_ldflags)' -o $@
+
+format:
+	gofmt -w .
+
+lint:
+	@gofmt -d . | grep ^ \
+	&& echo The above files need to be formatted. Please run make format. && exit 1 \
+	|| echo All files formated.
