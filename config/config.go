@@ -22,21 +22,25 @@ const (
 	METRICS_PERF
 )
 
-type Config struct {
-	HttpListen    string
-	OvsdbEndpoint string
-	LogLevel      syslog.Priority
-	MetricSets    MetricSet
+func (s MetricSet) Has(o MetricSet) bool {
+	return s&o == o
 }
 
-var conf = Config{
-	HttpListen:    ":1981",
-	OvsdbEndpoint: "unix:/run/openvswitch/ovsdb.sock",
-	LogLevel:      syslog.LOG_NOTICE,
-	MetricSets:    METRICS_BASE | METRICS_ERRORS,
-}
+var (
+	// [main].http-listen or OVS_NODE_EXPORTER_HTTP_LISTEN
+	HttpListen string = ":1981"
 
-func ParseConfig() (*Config, error) {
+	// [main].ovsdb-endpoint or OVS_NODE_EXPORTER_OVSDB_ENDPOINT
+	OvsdbEndpoint string = "unix:/run/openvswitch/db.sock"
+
+	// [main].log-level or OVS_NODE_EXPORTER_LOG_LEVEL
+	LogLevel syslog.Priority = syslog.LOG_NOTICE
+
+	// [metrics].sets or OVS_NODE_EXPORTER_METRICS_SETS
+	MetricSets MetricSet = METRICS_BASE | METRICS_ERRORS
+)
+
+func Parse() error {
 	path, configInEnv := os.LookupEnv("OVS_NODE_EXPORTER_CONFIG")
 	if !configInEnv {
 		path = "/etc/ovs-node-exporter.conf"
@@ -45,7 +49,7 @@ func ParseConfig() (*Config, error) {
 	file, err := ini.LoadFile(path)
 	if err != nil {
 		if configInEnv {
-			return nil, err
+			return err
 		}
 		file = make(ini.File)
 	}
@@ -56,7 +60,7 @@ func ParseConfig() (*Config, error) {
 		value, ok = file.Get("main", "http-listen")
 	}
 	if ok {
-		conf.HttpListen = value
+		HttpListen = value
 	}
 
 	// [main].ovsdb-endpoint
@@ -65,7 +69,7 @@ func ParseConfig() (*Config, error) {
 		value, ok = file.Get("main", "ovsdb-endpoint")
 	}
 	if ok {
-		conf.OvsdbEndpoint = value
+		OvsdbEndpoint = value
 	}
 
 	// [main].log-level
@@ -76,9 +80,9 @@ func ParseConfig() (*Config, error) {
 	if ok {
 		prio, err := log.ParseLogLevel(value)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		conf.LogLevel = prio
+		LogLevel = prio
 	}
 
 	// [metrics].categories
@@ -87,25 +91,25 @@ func ParseConfig() (*Config, error) {
 		value, ok = file.Get("metrics", "sets")
 	}
 	if ok {
-		conf.MetricSets = 0
+		MetricSets = 0
 		for _, word := range strings.Fields(value) {
 			switch word {
 			case "base":
-				conf.MetricSets |= METRICS_BASE
+				MetricSets |= METRICS_BASE
 			case "errors":
-				conf.MetricSets |= METRICS_ERRORS
+				MetricSets |= METRICS_ERRORS
 			case "counters":
-				conf.MetricSets |= METRICS_COUNTERS
+				MetricSets |= METRICS_COUNTERS
 			case "perf":
-				conf.MetricSets |= METRICS_PERF
+				MetricSets |= METRICS_PERF
 			default:
-				return nil, fmt.Errorf("invalid metric set: %q", word)
+				return fmt.Errorf("invalid metric set: %q", word)
 			}
 		}
-		if conf.MetricSets == 0 {
-			return nil, fmt.Errorf("no metric sets enabled")
+		if MetricSets == 0 {
+			return fmt.Errorf("no metric sets enabled")
 		}
 	}
 
-	return &conf, nil
+	return nil
 }

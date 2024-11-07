@@ -17,14 +17,12 @@ import (
 )
 
 func main() {
-	conf, err := config.ParseConfig()
-	if err != nil {
+	if err := config.Parse(); err != nil {
 		// logging not initialized yet, directly write to stderr
 		fmt.Fprintf(os.Stderr, "error: failed to parse config: %s\n", err)
 		os.Exit(1)
 	}
-	err = log.InitLogging(conf.LogLevel)
-	if err != nil {
+	if err := log.InitLogging(config.LogLevel); err != nil {
 		// logging not initialized yet, directly write to stderr
 		fmt.Fprintf(os.Stderr, "error: failed to init log: %s\n", err)
 		os.Exit(1)
@@ -33,21 +31,22 @@ func main() {
 	log.Debugf("initializing collectors")
 
 	var collectors []prometheus.Collector
-	collectors = append(collectors, ovsdb.Collector(conf))
+	collectors = append(collectors, ovsdb.Collectors()...)
+	registry := prometheus.NewRegistry()
 
 	for _, c := range collectors {
 		log.Debugf("registering %T", c)
-		err := prometheus.Register(c)
-		if err != nil {
+
+		if err := registry.Register(c); err != nil {
 			log.Critf("collector: %s", err)
 			os.Exit(1)
 		}
 	}
 
-	log.Noticef("listening on http://[::]%s", conf.HttpListen)
+	log.Noticef("listening on http://[::]%s", config.HttpListen)
 
 	handler := promhttp.HandlerFor(
-		prometheus.DefaultGatherer,
+		registry,
 		promhttp.HandlerOpts{
 			ErrorLog:            log.PrometheusLogger(),
 			ErrorHandling:       promhttp.ContinueOnError,
@@ -56,8 +55,7 @@ func main() {
 			EnableOpenMetrics:   true,
 		},
 	)
-	err = http.ListenAndServe(conf.HttpListen, handler)
-	if err != nil {
+	if err := http.ListenAndServe(config.HttpListen, handler); err != nil {
 		log.Critf("listen: %s", err)
 		os.Exit(1)
 	}

@@ -210,7 +210,7 @@ func (s *sink) Info(level int, msg string, args ...any) {
 }
 
 func (s *sink) Init(info logr.RuntimeInfo) {
-	s.calldepth = info.CallDepth
+	s.calldepth = info.CallDepth + 2
 }
 
 func (s *sink) WithValues(keysAndValues ...any) logr.LogSink {

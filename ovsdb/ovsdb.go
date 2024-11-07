@@ -12,28 +12,27 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rjarry/ovs-exporter/config"
 	"github.com/rjarry/ovs-exporter/log"
-	"github.com/rjarry/ovs-exporter/schema/ovs"
 )
 
-type OvsdbCollector struct {
-	endpoint string
-	schema   model.ClientDBModel
-	db       client.Client
-	metrics  []*OvsMetric
+var (
+	// initialized via register() in modules init()
+	collectors []prometheus.Collector
+	// initialized once in Collectors()
+	schema model.ClientDBModel
+	// nil at startup, initialized with connect()
+	DB client.Client
+)
+
+func register(c prometheus.Collector) {
+	collectors = append(collectors, c)
 }
 
-var collector OvsdbCollector
-
-func (c *OvsdbCollector) RegisterMetric(m *OvsMetric) {
-	c.metrics = append(c.metrics, m)
-}
-
-func (c *OvsdbCollector) connect() bool {
+func connect() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	if c.db != nil {
-		err := c.db.Echo(ctx)
+	if DB != nil {
+		err := DB.Echo(ctx)
 		if err == nil {
 			return true
 		}
@@ -43,11 +42,11 @@ func (c *OvsdbCollector) connect() bool {
 		defer cancel()
 	}
 
-	log.Noticef("connecting to ovsdb: %s", c.endpoint)
+	log.Noticef("connecting to ovsdb: %s", config.OvsdbEndpoint)
 
 	db, err := client.NewOVSDBClient(
-		c.schema,
-		client.WithEndpoint(c.endpoint),
+		schema,
+		client.WithEndpoint(config.OvsdbEndpoint),
 		client.WithLogger(log.OvsdbLogger()),
 	)
 	if err != nil {
@@ -58,38 +57,16 @@ func (c *OvsdbCollector) connect() bool {
 		log.Errf("db.Connect: %s", err)
 		return false
 	}
-	if err = c.db.Echo(ctx); err != nil {
+	if err = db.Echo(ctx); err != nil {
 		log.Errf("db.Echo: %s", err)
 		return false
 	}
 
-	c.db = db
+	DB = db
 	return true
 }
 
-func (c *OvsdbCollector) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range c.metrics {
-		ch <- metric.Desc
-	}
-}
-
-func (c *OvsdbCollector) Collect(ch chan<- prometheus.Metric) {
-	if !c.connect() {
-		return
-	}
-	for _, metric := range c.metrics {
-		ch <- metric.Value(c.db)
-	}
-}
-
-func Collector(conf *config.Config) prometheus.Collector {
-	schema, err := ovs.FullDatabaseModel()
-	if err != nil {
-		panic(err)
-	}
-
-	collector.schema = schema
-	collector.endpoint = conf.OvsdbEndpoint
-
-	return &collector
+func Collectors() []prometheus.Collector {
+	schema, _ = model.NewClientDBModel("Open_vSwitch", nil)
+	return collectors
 }

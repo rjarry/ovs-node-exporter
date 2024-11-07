@@ -11,9 +11,3 @@ all: ovs-node-exporter
 
 ovs-node-exporter: $(src)
 	go build -trimpath -ldflags='$(go_ldflags)' -o $@
-
-.PHONY: generate
-generate: schema/ovs/model.go
-
-schema/ovs/model.go: schema/ovs/schema.json
-	go generate ./...
