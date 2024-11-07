@@ -10,7 +10,7 @@ import (
 	"github.com/rjarry/ovs-exporter/log"
 )
 
-var metrics = []lib.Metric{
+var vswitchMetrics = []lib.Metric{
 	{
 		Set:         config.METRICS_BASE,
 		Name:        "ovs_build_info",
@@ -23,7 +23,7 @@ var metrics = []lib.Metric{
 type OpenvSwitchCollector struct{}
 
 func (c *OpenvSwitchCollector) Describe(ch chan<- *prometheus.Desc) {
-	for _, m := range metrics {
+	for _, m := range vswitchMetrics {
 		if config.MetricSets.Has(m.Set) {
 			log.Debugf("%T: enabling metric %s", c, m.Name)
 			ch <- m.Desc()
@@ -46,7 +46,7 @@ func (c *OpenvSwitchCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	row := results[0].Rows[0]
 
-	for _, m := range metrics {
+	for _, m := range vswitchMetrics {
 		if config.MetricSets.Has(m.Set) {
 			labels := make([]string, 0, len(m.Labels))
 			for _, name := range m.Labels {
