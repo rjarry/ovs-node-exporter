@@ -33,6 +33,9 @@ var (
 	// [main].ovsdb-endpoint or OVS_NODE_EXPORTER_OVSDB_ENDPOINT
 	OvsdbEndpoint string = "unix:/run/openvswitch/db.sock"
 
+	// [main].appctl-pidfile or OVS_NODE_EXPORTER_APPCTL_PIDFILE
+	AppctlPidfile string = "/run/openvswitch/ovs-vswitch.pid"
+
 	// [main].log-level or OVS_NODE_EXPORTER_LOG_LEVEL
 	LogLevel syslog.Priority = syslog.LOG_NOTICE
 
@@ -70,6 +73,15 @@ func Parse() error {
 	}
 	if ok {
 		OvsdbEndpoint = value
+	}
+
+	// [main].appctl-pidfile
+	value, ok = os.LookupEnv("OVS_NODE_EXPORTER_APPCTL_PIDFILE")
+	if !ok {
+		value, ok = file.Get("main", "appctl-pidfile")
+	}
+	if ok {
+		AppctlPidfile = value
 	}
 
 	// [main].log-level

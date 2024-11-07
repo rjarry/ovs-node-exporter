@@ -12,6 +12,9 @@ all: ovs-node-exporter
 ovs-node-exporter: $(src)
 	go build -trimpath -ldflags='$(go_ldflags)' -o $@
 
+ovs-node-exporter.debug: $(src)
+	go build -ldflags='$(go_ldflags)' -gcflags=all="-N -l" -o $@
+
 format:
 	gofmt -w .
 
