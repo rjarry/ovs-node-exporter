@@ -11,7 +11,7 @@ type Metric struct {
 	Description string
 	Labels      []string
 	ConstLabels prometheus.Labels
-	Type        prometheus.ValueType
+	ValueType   prometheus.ValueType
 	desc        *prometheus.Desc
 }
 

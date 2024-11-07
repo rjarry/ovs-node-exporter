@@ -10,20 +10,24 @@ import (
 	"github.com/rjarry/ovs-exporter/log"
 )
 
-var version = lib.Metric{
-	Set:         config.METRICS_BASE,
-	Name:        "ovs_build_info",
-	Description: "Version and library from which OVS binaries were built.",
-	Labels:      []string{"ovs_version", "dpdk_version", "db_version"},
-	Type:        prometheus.GaugeValue,
+var metrics = []lib.Metric{
+	{
+		Set:         config.METRICS_BASE,
+		Name:        "ovs_build_info",
+		Description: "Version and library from which OVS binaries were built.",
+		Labels:      []string{"ovs_version", "dpdk_version", "db_version"},
+		ValueType:   prometheus.GaugeValue,
+	},
 }
 
 type OpenvSwitchCollector struct{}
 
 func (c *OpenvSwitchCollector) Describe(ch chan<- *prometheus.Desc) {
-	if config.MetricSets.Has(version.Set) {
-		log.Debugf("%T: enabling metric %s", c, version.Name)
-		ch <- version.Desc()
+	for _, m := range metrics {
+		if config.MetricSets.Has(m.Set) {
+			log.Debugf("%T: enabling metric %s", c, m.Name)
+			ch <- m.Desc()
+		}
 	}
 }
 
@@ -40,17 +44,15 @@ func (c *OpenvSwitchCollector) Collect(ch chan<- prometheus.Metric) {
 		log.Errf("transact: %s", err)
 		return
 	}
-	for _, res := range results {
-		for _, row := range res.Rows {
-			if config.MetricSets.Has(version.Set) {
-				ch <- prometheus.MustNewConstMetric(
-					version.Desc(),
-					prometheus.GaugeValue, 1,
-					row["ovs_version"].(string),
-					row["dpdk_version"].(string),
-					row["db_version"].(string),
-				)
+	row := results[0].Rows[0]
+
+	for _, m := range metrics {
+		if config.MetricSets.Has(m.Set) {
+			labels := make([]string, 0, len(m.Labels))
+			for _, name := range m.Labels {
+				labels = append(labels, row[name].(string))
 			}
+			ch <- prometheus.MustNewConstMetric(m.Desc(), m.ValueType, 1, labels...)
 		}
 	}
 }
